@@ -1,0 +1,298 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ============================================
+       NOTEBOOK DESIGN SYSTEM - CSS VARIABLES
+       Based on Phase 1 Research & Design System
+       ============================================ */
+
+    /* Primary Palette - Deep Indigo */
+    --primary: 234 89% 74%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary Palette - Warm Gray */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 9% 46%;
+
+    /* Background & Foreground */
+    --background: 0 0% 100%;
+    --foreground: 224 71% 4%;
+
+    /* Card */
+    --card: 0 0% 100%;
+    --card-foreground: 224 71% 4%;
+
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71% 4%;
+
+    /* Muted */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    /* Accent */
+    --accent: 220 14% 96%;
+    --accent-foreground: 220 9% 46%;
+
+    /* Destructive - Error Red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Semantic Colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    /* Borders & Inputs */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 234 89% 74%;
+
+    /* Radius */
+    --radius: 0.5rem;
+
+    /* Graph Visualization */
+    --graph-node: 234 89% 74%;
+    --graph-edge: 220 13% 75%;
+    --graph-highlight: 262 83% 58%;
+
+    /* Sidebar */
+    --sidebar-width: 280px;
+    --sidebar-collapsed-width: 64px;
+
+    /* Note Editor */
+    --editor-max-width: 720px;
+    --editor-padding: 2rem;
+  }
+
+  .dark {
+    /* Background & Foreground - Dark */
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+
+    /* Card - Dark */
+    --card: 224 71% 7%;
+    --card-foreground: 213 31% 91%;
+
+    /* Popover - Dark */
+    --popover: 224 71% 7%;
+    --popover-foreground: 213 31% 91%;
+
+    /* Primary - Lighter for dark mode */
+    --primary: 234 89% 74%;
+    --primary-foreground: 224 71% 4%;
+
+    /* Secondary - Dark */
+    --secondary: 215 28% 17%;
+    --secondary-foreground: 213 31% 91%;
+
+    /* Muted - Dark */
+    --muted: 215 28% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    /* Accent - Dark */
+    --accent: 215 28% 17%;
+    --accent-foreground: 213 31% 91%;
+
+    /* Destructive - Dark */
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* Semantic Colors - Dark */
+    --success: 142 69% 45%;
+    --success-foreground: 224 71% 4%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 224 71% 4%;
+
+    --info: 199 89% 48%;
+    --info-foreground: 224 71% 4%;
+
+    /* Borders - Dark */
+    --border: 215 28% 17%;
+    --input: 215 28% 17%;
+    --ring: 234 89% 74%;
+
+    /* Graph Visualization - Dark */
+    --graph-node: 234 89% 74%;
+    --graph-edge: 215 20% 40%;
+    --graph-highlight: 262 83% 68%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Focus visible styles */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Selection colors */
+  ::selection {
+    @apply bg-primary/20 text-foreground;
+  }
+}
+
+@layer components {
+  /* Editor-specific styles */
+  .editor-content {
+    @apply prose prose-neutral dark:prose-invert max-w-none;
+  }
+
+  .editor-content h1 {
+    @apply text-3xl font-bold mt-8 mb-4;
+  }
+
+  .editor-content h2 {
+    @apply text-2xl font-semibold mt-6 mb-3;
+  }
+
+  .editor-content h3 {
+    @apply text-xl font-semibold mt-5 mb-2;
+  }
+
+  .editor-content p {
+    @apply mb-4 leading-relaxed;
+  }
+
+  .editor-content ul,
+  .editor-content ol {
+    @apply mb-4 pl-6;
+  }
+
+  .editor-content li {
+    @apply mb-1;
+  }
+
+  .editor-content blockquote {
+    @apply border-l-4 border-primary/30 pl-4 italic text-muted-foreground my-4;
+  }
+
+  .editor-content code {
+    @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+  }
+
+  .editor-content pre {
+    @apply bg-muted p-4 rounded-lg overflow-x-auto my-4;
+  }
+
+  .editor-content pre code {
+    @apply bg-transparent p-0;
+  }
+
+  /* Task list styles for Tiptap */
+  .editor-content ul[data-type="taskList"] {
+    @apply list-none pl-0;
+  }
+
+  .editor-content ul[data-type="taskList"] li {
+    @apply flex items-start gap-2;
+  }
+
+  .editor-content ul[data-type="taskList"] li > label {
+    @apply flex-shrink-0 mt-0.5;
+  }
+
+  .editor-content ul[data-type="taskList"] li > div {
+    @apply flex-1;
+  }
+
+  /* Link styles */
+  .editor-content a {
+    @apply text-primary underline underline-offset-2 hover:text-primary/80 transition-colors;
+  }
+
+  /* Placeholder styles */
+  .editor-placeholder {
+    @apply text-muted-foreground pointer-events-none;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar while keeping functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Custom scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-background/80 backdrop-blur-sm;
+  }
+
+  /* Text balance for headings */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent;
+  }
+
+  /* Transition utilities */
+  .transition-fast {
+    @apply transition-all duration-100 ease-out;
+  }
+
+  .transition-normal {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .transition-slow {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  /* Focus ring utility */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+}
