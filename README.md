@@ -17,7 +17,7 @@ Comparing capabilities with similar open-source projects:
 | **Source Ingestion** |
 | PDF Upload | ✅ | ✅ | ✅ |
 | URL/Web Scraping | ✅ | ✅ | ✅ |
-| YouTube Transcripts | ⏳ | ✅ | ✅ |
+| YouTube Transcripts | ✅ | ✅ | ✅ |
 | Text/Markdown | ✅ | ✅ | ✅ |
 | ePub | ⏳ | ✅ | ❌ |
 | Office Files (Word, PPT) | ⏳ | ✅ | ❌ |
@@ -38,7 +38,7 @@ Comparing capabilities with similar open-source projects:
 | OpenAI | ✅ | ✅ | ✅ |
 | Anthropic | ✅ | ✅ | ❌ |
 | Google Gemini | ✅ | ✅ | ✅ |
-| Ollama (Local) | ⏳ | ✅ | ❌ |
+| Ollama (Local) | ✅ | ✅ | ❌ |
 | Groq | ⏳ | ✅ | ❌ |
 
 ✅ Supported | ⏳ Planned | ❌ Not Available
@@ -53,7 +53,7 @@ Choose your AI providers based on your needs:
 | Anthropic | ✅ | ❌ | ❌ |
 | Google Gemini | ✅ | ⏳ | ⏳ |
 | ElevenLabs | ❌ | ❌ | ✅ |
-| Ollama | ⏳ | ⏳ | ❌ |
+| Ollama | ✅ | ✅ | ❌ |
 
 ## Content Support
 
@@ -64,7 +64,7 @@ Choose your AI providers based on your needs:
 | Documents | PDF | Full text extraction with PyPDF2 |
 | Web Pages | URL | Intelligent scraping via httpx + BeautifulSoup |
 | Text | Plain text, Markdown | Direct input |
-| YouTube | ⏳ Coming soon | Transcript extraction |
+| YouTube | Video URL | Transcript extraction via youtube-transcript-api |
 
 ### Transformations
 
@@ -222,6 +222,7 @@ notebook/
 | OpenAI | `OPENAI_API_KEY`, `OPENAI_MODEL` (default: gpt-4-turbo-preview) |
 | Anthropic | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` (default: claude-3-5-sonnet-20241022) |
 | Google | `GOOGLE_API_KEY`, `GOOGLE_MODEL` (default: gemini-1.5-pro) |
+| Ollama | `OLLAMA_BASE_URL` (default: http://localhost:11434), `OLLAMA_MODEL` (default: llama3.2) |
 
 ### TTS Providers
 
@@ -250,9 +251,9 @@ mypy app                        # Type checking
 
 ## Roadmap
 
-- [ ] YouTube transcript ingestion
+- [x] YouTube transcript ingestion
 - [ ] ePub and Office file support
-- [ ] Ollama local LLM support
+- [x] Ollama local LLM support
 - [ ] Groq integration
 - [ ] Custom transformation prompts
 - [ ] Export to various formats
