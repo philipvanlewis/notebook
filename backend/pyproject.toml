@@ -29,6 +29,7 @@ dependencies = [
     # Auth
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
+    "bcrypt>=4.0.0,<5.0.0",  # Pin to 4.x for passlib compatibility
     "httpx>=0.26.0",
 
     # Validation
@@ -40,6 +41,16 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "redis>=5.0.1",
     "aiofiles>=23.2.1",
+
+    # Source Ingestion (PDF, Web Scraping, YouTube)
+    "pymupdf>=1.23.0",  # PDF text extraction (faster than pypdf)
+    "pypdf>=3.17.0",  # Fallback PDF extraction
+    "beautifulsoup4>=4.12.0",  # HTML parsing for web scraping
+    "lxml>=5.0.0",  # HTML parser backend
+    "youtube-transcript-api>=0.6.0",  # YouTube transcript extraction
+
+    # Audio Processing
+    "pydub>=0.25.0",  # Audio manipulation for podcasts
 ]
 
 [project.optional-dependencies]
@@ -56,6 +67,9 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
 
 [tool.ruff]
 target-version = "py311"

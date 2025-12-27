@@ -53,6 +53,11 @@ class User(Base, TimestampMixin):
         back_populates="owner",
         lazy="selectin",
     )
+    sources: Mapped[list["Source"]] = relationship(
+        "Source",
+        back_populates="owner",
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.email}>"

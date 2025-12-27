@@ -72,3 +72,32 @@ class NoteList(BaseModel):
     page: int
     page_size: int
     has_more: bool
+
+
+class NoteSearchResult(BaseModel):
+    """Schema for semantic search result with similarity score."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    title: str
+    content: str
+    tags: list[str]
+    similarity: float = Field(..., description="Cosine similarity score (0-1)")
+    created_at: datetime
+    updated_at: datetime
+
+
+class NoteSearchResponse(BaseModel):
+    """Schema for semantic search response."""
+
+    query: str
+    results: list[NoteSearchResult]
+    total: int
+
+
+class SimilarNotesResponse(BaseModel):
+    """Schema for similar notes response."""
+
+    note_id: UUID
+    similar_notes: list[NoteSearchResult]

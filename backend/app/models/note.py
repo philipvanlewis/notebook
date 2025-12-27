@@ -47,9 +47,9 @@ class Note(Base, TimestampMixin):
         nullable=True,
     )
 
-    # Tags and metadata stored as JSONB
+    # Tags and extra data stored as JSONB
     tags: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
-    metadata: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    extra_data: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
     # Vector embedding for semantic search (1536 dimensions for text-embedding-3-small)
     embedding: Mapped[list[float] | None] = mapped_column(

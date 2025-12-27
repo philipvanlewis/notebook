@@ -62,10 +62,33 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
+    # LLM Provider Selection
+    LLM_PROVIDER: str = "openai"  # "openai", "anthropic", "google", or "ollama"
+
     # OpenAI
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4-turbo-preview"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
+
+    # Anthropic
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-3-5-sonnet-20241022"
+
+    # Google (Gemini)
+    GOOGLE_API_KEY: str = ""
+    GOOGLE_MODEL: str = "gemini-1.5-pro"
+
+    # Ollama (Local LLM)
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "llama3.2"  # Default model, can be llama3.2, mistral, codellama, etc.
+    OLLAMA_EMBEDDING_MODEL: str = "nomic-embed-text"  # For local embeddings
+
+    # TTS (Text-to-Speech)
+    TTS_PROVIDER: str = "openai"  # "openai" or "elevenlabs"
+    ELEVENLABS_API_KEY: str = ""
+    ELEVENLABS_VOICE_ID: str = "21m00Tcm4TlvDq8ikWAM"  # Default "Rachel" voice
+    OPENAI_TTS_MODEL: str = "tts-1"
+    OPENAI_TTS_VOICE: str = "alloy"  # alloy, echo, fable, onyx, nova, shimmer
 
     # OAuth Providers (optional)
     GOOGLE_CLIENT_ID: str = ""

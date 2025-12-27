@@ -1,18 +1,31 @@
 """
 Notes Endpoints
 
-CRUD operations for notes with search and linking.
+CRUD operations for notes with semantic search and linking.
 """
 
+import logging
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import func, select
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DbSession
+from app.core.config import settings
 from app.models.note import Note, NoteLink
-from app.schemas.note import NoteCreate, NoteList, NoteRead, NoteUpdate
+from app.schemas.note import (
+    NoteCreate,
+    NoteList,
+    NoteRead,
+    NoteSearchResponse,
+    NoteSearchResult,
+    NoteUpdate,
+    SimilarNotesResponse,
+)
+from app.services.embeddings import embedding_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -74,14 +87,45 @@ async def list_notes(
     )
 
 
+async def generate_and_store_embedding(db: DbSession, note_id: UUID) -> None:
+    """
+    Background task to generate and store embedding for a note.
+    """
+    try:
+        result = await db.execute(select(Note).where(Note.id == note_id))
+        note = result.scalar_one_or_none()
+
+        if not note:
+            logger.warning(f"Note {note_id} not found for embedding generation")
+            return
+
+        # Prepare text and generate embedding
+        text = embedding_service.prepare_note_text(
+            title=note.title,
+            content=note.content,
+            tags=note.tags,
+        )
+        embedding = await embedding_service.generate_embedding(text)
+
+        # Store embedding
+        note.embedding = embedding
+        await db.commit()
+        logger.info(f"Generated embedding for note {note_id}")
+
+    except Exception as e:
+        logger.error(f"Failed to generate embedding for note {note_id}: {e}")
+        await db.rollback()
+
+
 @router.post("", response_model=NoteRead, status_code=status.HTTP_201_CREATED)
 async def create_note(
     db: DbSession,
     current_user: CurrentUser,
     note_in: NoteCreate,
+    background_tasks: BackgroundTasks,
 ) -> Note:
     """
-    Create a new note.
+    Create a new note. Embedding is generated asynchronously in the background.
     """
     note = Note(
         **note_in.model_dump(),
@@ -91,7 +135,88 @@ async def create_note(
     await db.commit()
     await db.refresh(note)
 
+    # Generate embedding in background if OpenAI is configured
+    if settings.OPENAI_API_KEY:
+        background_tasks.add_task(generate_and_store_embedding, db, note.id)
+
     return note
+
+
+@router.get("/search/semantic", response_model=NoteSearchResponse)
+async def semantic_search(
+    db: DbSession,
+    current_user: CurrentUser,
+    q: str = Query(..., min_length=1, max_length=500, description="Search query"),
+    limit: int = Query(10, ge=1, le=50, description="Maximum results"),
+    threshold: float = Query(0.3, ge=0, le=1, description="Minimum similarity threshold"),
+) -> NoteSearchResponse:
+    """
+    Semantic search across notes using vector similarity.
+
+    Finds notes whose content is semantically similar to the query,
+    even if they don't contain the exact words.
+    """
+    if not settings.OPENAI_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Semantic search requires OpenAI API key to be configured",
+        )
+
+    # Generate embedding for query
+    try:
+        query_embedding = await embedding_service.generate_embedding(q)
+    except Exception as e:
+        logger.error(f"Failed to generate query embedding: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to process search query",
+        )
+
+    # Perform vector similarity search using pgvector
+    # Using cosine distance: 1 - distance = similarity
+    query = text("""
+        SELECT
+            id, title, content, tags, created_at, updated_at,
+            1 - (embedding <=> :query_embedding::vector) AS similarity
+        FROM notes
+        WHERE owner_id = :owner_id
+            AND embedding IS NOT NULL
+            AND is_archived = false
+            AND 1 - (embedding <=> :query_embedding::vector) >= :threshold
+        ORDER BY similarity DESC
+        LIMIT :limit
+    """)
+
+    result = await db.execute(
+        query,
+        {
+            "query_embedding": str(query_embedding),
+            "owner_id": str(current_user.id),
+            "threshold": threshold,
+            "limit": limit,
+        },
+    )
+
+    rows = result.fetchall()
+
+    results = [
+        NoteSearchResult(
+            id=row.id,
+            title=row.title,
+            content=row.content[:500] + "..." if len(row.content) > 500 else row.content,
+            tags=row.tags or [],
+            similarity=round(row.similarity, 4),
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+        for row in rows
+    ]
+
+    return NoteSearchResponse(
+        query=q,
+        results=results,
+        total=len(results),
+    )
 
 
 @router.get("/{note_id}", response_model=NoteRead)
@@ -128,9 +253,10 @@ async def update_note(
     current_user: CurrentUser,
     note_id: UUID,
     note_in: NoteUpdate,
+    background_tasks: BackgroundTasks,
 ) -> Note:
     """
-    Update a note.
+    Update a note. Re-generates embedding if content changes.
     """
     result = await db.execute(
         select(Note).where(Note.id == note_id, Note.owner_id == current_user.id)
@@ -144,11 +270,21 @@ async def update_note(
         )
 
     update_data = note_in.model_dump(exclude_unset=True)
+
+    # Check if content-related fields changed (requires re-embedding)
+    content_changed = any(
+        field in update_data for field in ["title", "content", "tags"]
+    )
+
     for field, value in update_data.items():
         setattr(note, field, value)
 
     await db.commit()
     await db.refresh(note)
+
+    # Regenerate embedding if content changed
+    if content_changed and settings.OPENAI_API_KEY:
+        background_tasks.add_task(generate_and_store_embedding, db, note.id)
 
     return note
 
@@ -229,3 +365,81 @@ async def unarchive_note(
     await db.refresh(note)
 
     return note
+
+
+@router.get("/{note_id}/similar", response_model=SimilarNotesResponse)
+async def get_similar_notes(
+    db: DbSession,
+    current_user: CurrentUser,
+    note_id: UUID,
+    limit: int = Query(5, ge=1, le=20, description="Maximum similar notes"),
+    threshold: float = Query(0.5, ge=0, le=1, description="Minimum similarity threshold"),
+) -> SimilarNotesResponse:
+    """
+    Find notes similar to the given note based on semantic content.
+
+    Uses the note's embedding to find other notes with similar meaning.
+    """
+    # Get the source note
+    result = await db.execute(
+        select(Note).where(Note.id == note_id, Note.owner_id == current_user.id)
+    )
+    note = result.scalar_one_or_none()
+
+    if not note:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Note not found",
+        )
+
+    if note.embedding is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Note does not have an embedding. Wait for it to be generated or update the note.",
+        )
+
+    # Find similar notes using the note's embedding
+    query = text("""
+        SELECT
+            id, title, content, tags, created_at, updated_at,
+            1 - (embedding <=> :note_embedding::vector) AS similarity
+        FROM notes
+        WHERE owner_id = :owner_id
+            AND id != :note_id
+            AND embedding IS NOT NULL
+            AND is_archived = false
+            AND 1 - (embedding <=> :note_embedding::vector) >= :threshold
+        ORDER BY similarity DESC
+        LIMIT :limit
+    """)
+
+    result = await db.execute(
+        query,
+        {
+            "note_embedding": str(list(note.embedding)),
+            "owner_id": str(current_user.id),
+            "note_id": str(note_id),
+            "threshold": threshold,
+            "limit": limit,
+        },
+    )
+
+    rows = result.fetchall()
+
+    similar_notes = [
+        NoteSearchResult(
+            id=row.id,
+            title=row.title,
+            content=row.content[:500] + "..." if len(row.content) > 500 else row.content,
+            tags=row.tags or [],
+            similarity=round(row.similarity, 4),
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+        for row in rows
+    ]
+
+    return SimilarNotesResponse(
+        note_id=note_id,
+        similar_notes=similar_notes,
+    )
