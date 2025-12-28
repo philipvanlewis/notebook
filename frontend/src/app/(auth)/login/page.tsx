@@ -58,21 +58,30 @@ export default function LoginPage() {
     }
   };
 
-  // Demo login for development
-  const handleDemoLogin = () => {
-    login(
-      {
-        id: "demo-user",
-        email: "demo@notebook.app",
-        name: "Demo User",
-        avatar_url: null,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      "demo-token"
-    );
-    router.push("/notes");
+  // Demo login for development - uses real backend authentication
+  const handleDemoLogin = async () => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      // Use demo account credentials
+      const tokenResponse = await authApi.login("demo@notebook.app", "demo123");
+
+      const { setToken } = useAuthStore.getState();
+      setToken(tokenResponse.access_token);
+
+      const user = await authApi.me();
+      login(user, tokenResponse.access_token);
+      router.push("/notes");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message || "Demo login failed");
+      } else {
+        setError("Demo login failed. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

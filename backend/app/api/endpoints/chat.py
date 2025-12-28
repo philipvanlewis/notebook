@@ -99,12 +99,12 @@ async def chat(
     query = text("""
         SELECT
             id, title, content, tags,
-            1 - (embedding <=> :query_embedding::vector) AS similarity
+            1 - (embedding <=> CAST(:query_embedding AS vector)) AS similarity
         FROM notes
-        WHERE owner_id = :owner_id
+        WHERE owner_id = CAST(:owner_id AS uuid)
             AND embedding IS NOT NULL
             AND is_archived = false
-            AND 1 - (embedding <=> :query_embedding::vector) >= :threshold
+            AND 1 - (embedding <=> CAST(:query_embedding AS vector)) >= :threshold
         ORDER BY similarity DESC
         LIMIT :limit
     """)
@@ -194,12 +194,12 @@ async def chat_stream(
     query = text("""
         SELECT
             id, title, content, tags,
-            1 - (embedding <=> :query_embedding::vector) AS similarity
+            1 - (embedding <=> CAST(:query_embedding AS vector)) AS similarity
         FROM notes
-        WHERE owner_id = :owner_id
+        WHERE owner_id = CAST(:owner_id AS uuid)
             AND embedding IS NOT NULL
             AND is_archived = false
-            AND 1 - (embedding <=> :query_embedding::vector) >= :threshold
+            AND 1 - (embedding <=> CAST(:query_embedding AS vector)) >= :threshold
         ORDER BY similarity DESC
         LIMIT :limit
     """)

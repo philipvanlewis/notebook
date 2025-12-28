@@ -34,13 +34,13 @@ export default function HomePage() {
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4">
           <Link
-            href="/app"
+            href="/notes"
             className="inline-flex h-11 items-center justify-center rounded-lg bg-primary px-8 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-ring"
           >
             Open App
           </Link>
           <Link
-            href="/auth/signin"
+            href="/login"
             className="inline-flex h-11 items-center justify-center rounded-lg border border-input bg-background px-8 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-ring"
           >
             Sign In

@@ -29,7 +29,12 @@ class SourcesService:
             timeout=30.0,
             follow_redirects=True,
             headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache"
             },
         )
 
@@ -140,17 +145,98 @@ class SourcesService:
         Following HyperbookLM's scrape route pattern:
         - Returns: title, content, text, url
 
-        Uses httpx + BeautifulSoup as Python equivalent of Hyperbrowser.
-        For production, consider Firecrawl or Jina Reader APIs.
+        Uses Jina Reader API first (bypasses bot protection), falls back to direct fetch.
         """
-        try:
-            # Validate URL
-            parsed = urlparse(url)
-            if not parsed.scheme:
-                url = f"https://{url}"
-            elif parsed.scheme not in ("http", "https"):
-                raise ValueError("URL must use HTTP or HTTPS protocol")
+        print(f"[DEBUG] scrape_url called with: {url}", flush=True)
 
+        # Validate URL
+        parsed = urlparse(url)
+        if not parsed.scheme:
+            url = f"https://{url}"
+            parsed = urlparse(url)
+        elif parsed.scheme not in ("http", "https"):
+            raise ValueError("URL must use HTTP or HTTPS protocol")
+
+        print(f"[DEBUG] Trying Jina Reader for: {url}", flush=True)
+
+        # Try Jina Reader first (handles Cloudflare and bot protection)
+        try:
+            result = await self._scrape_with_jina(url, parsed)
+            if result:
+                print(f"[DEBUG] Jina Reader SUCCESS", flush=True)
+                return result
+            print(f"[DEBUG] Jina returned empty result", flush=True)
+        except Exception as e:
+            print(f"[DEBUG] Jina failed: {e}", flush=True)
+            logger.warning(f"Jina Reader failed for {url}, trying direct fetch: {e}")
+
+        # Fallback to direct fetch
+        print(f"[DEBUG] Falling back to direct fetch", flush=True)
+        return await self._scrape_direct(url, parsed)
+
+    async def _scrape_with_jina(self, url: str, parsed) -> Optional[dict]:
+        """
+        Scrape using Jina Reader API (free, bypasses bot protection).
+        https://jina.ai/reader/
+        """
+        jina_url = f"https://r.jina.ai/{url}"
+
+        try:
+            # Create a separate client for Jina to avoid compression issues
+            async with httpx.AsyncClient(
+                timeout=60.0,
+                follow_redirects=True,
+            ) as jina_client:
+                response = await jina_client.get(
+                    jina_url,
+                    headers={
+                        "Accept": "text/plain",
+                        "User-Agent": "Mozilla/5.0 (compatible; NotebookApp/1.0)",
+                    },
+                )
+                response.raise_for_status()
+
+                # Get content and ensure it's valid UTF-8
+                content = response.text
+
+                # Remove null bytes and invalid characters
+                content = content.replace('\x00', '')
+                # Encode to UTF-8, ignoring errors, then decode back
+                content = content.encode('utf-8', errors='ignore').decode('utf-8')
+
+                if not content or len(content) < 50:
+                    return None
+
+                # Jina returns markdown with title on first line
+                lines = content.split("\n")
+                title = parsed.netloc
+
+                # Try to extract title from first heading
+                for line in lines[:5]:
+                    if line.startswith("# "):
+                        title = line[2:].strip()
+                        break
+                    elif line.startswith("Title:"):
+                        title = line[6:].strip()
+                        break
+
+                text = self._clean_text(content)
+
+                return {
+                    "title": title,
+                    "content": content,
+                    "text": text,
+                    "url": url,
+                    "word_count": len(text.split()),
+                }
+
+        except Exception as e:
+            logger.warning(f"Jina Reader error: {e}")
+            raise
+
+    async def _scrape_direct(self, url: str, parsed) -> dict:
+        """Direct scraping with httpx + BeautifulSoup."""
+        try:
             # Fetch the page
             response = await self.http_client.get(url)
             response.raise_for_status()

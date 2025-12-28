@@ -1,4 +1,4 @@
-"""
+﻿"""
 YouTube Service
 
 Extracts transcripts and metadata from YouTube videos.
@@ -180,7 +180,9 @@ class YouTubeService:
 
         try:
             # Try to get transcript with language preference
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            # Note: API changed from class methods to instance methods in newer versions
+            api = YouTubeTranscriptApi()
+            transcript_list = api.list(video_id)
 
             # Try manual transcripts first (higher quality)
             transcript = None
@@ -231,15 +233,16 @@ class YouTubeService:
                 raise ValueError(f"No transcript available for video: {video_id}")
 
             # Fetch the actual transcript data
-            transcript_data = transcript.fetch()
+            # Note: New API returns FetchedTranscript with .snippets containing FetchedTranscriptSnippet objects
+            fetched = transcript.fetch()
 
             segments = [
                 YouTubeTranscriptSegment(
-                    text=segment.get("text", ""),
-                    start=segment.get("start", 0.0),
-                    duration=segment.get("duration", 0.0),
+                    text=segment.text,
+                    start=segment.start,
+                    duration=segment.duration,
                 )
-                for segment in transcript_data
+                for segment in fetched.snippets
             ]
 
             return segments, language_used or "en"
@@ -416,3 +419,5 @@ class YouTubeService:
 
 # Global singleton instance
 youtube_service = YouTubeService()
+
+

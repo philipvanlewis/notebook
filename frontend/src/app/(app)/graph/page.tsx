@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ReactFlow,
@@ -163,10 +163,12 @@ export default function GraphPage() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Update nodes when data changes
-  useMemo(() => {
-    setNodes(initialNodes);
-    setEdges(initialEdges);
+  // Update nodes when data changes - use useEffect for side effects, not useMemo
+  useEffect(() => {
+    if (initialNodes.length > 0) {
+      setNodes(initialNodes);
+      setEdges(initialEdges);
+    }
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
   const onNodeClick = useCallback(

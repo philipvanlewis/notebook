@@ -174,15 +174,16 @@ async def semantic_search(
 
     # Perform vector similarity search using pgvector
     # Using cosine distance: 1 - distance = similarity
+    # Note: Using CAST() instead of :: operator to avoid conflict with SQLAlchemy named parameters
     query = text("""
         SELECT
             id, title, content, tags, created_at, updated_at,
-            1 - (embedding <=> :query_embedding::vector) AS similarity
+            1 - (embedding <=> CAST(:query_embedding AS vector)) AS similarity
         FROM notes
-        WHERE owner_id = :owner_id
+        WHERE owner_id = CAST(:owner_id AS uuid)
             AND embedding IS NOT NULL
             AND is_archived = false
-            AND 1 - (embedding <=> :query_embedding::vector) >= :threshold
+            AND 1 - (embedding <=> CAST(:query_embedding AS vector)) >= :threshold
         ORDER BY similarity DESC
         LIMIT :limit
     """)
@@ -399,16 +400,17 @@ async def get_similar_notes(
         )
 
     # Find similar notes using the note's embedding
+    # Note: Using CAST() instead of :: operator to avoid conflict with SQLAlchemy named parameters
     query = text("""
         SELECT
             id, title, content, tags, created_at, updated_at,
-            1 - (embedding <=> :note_embedding::vector) AS similarity
+            1 - (embedding <=> CAST(:note_embedding AS vector)) AS similarity
         FROM notes
-        WHERE owner_id = :owner_id
-            AND id != :note_id
+        WHERE owner_id = CAST(:owner_id AS uuid)
+            AND id != CAST(:note_id AS uuid)
             AND embedding IS NOT NULL
             AND is_archived = false
-            AND 1 - (embedding <=> :note_embedding::vector) >= :threshold
+            AND 1 - (embedding <=> CAST(:note_embedding AS vector)) >= :threshold
         ORDER BY similarity DESC
         LIMIT :limit
     """)
@@ -416,7 +418,7 @@ async def get_similar_notes(
     result = await db.execute(
         query,
         {
-            "note_embedding": str(list(note.embedding)),
+            "note_embedding": str([float(x) for x in note.embedding]),
             "owner_id": str(current_user.id),
             "note_id": str(note_id),
             "threshold": threshold,

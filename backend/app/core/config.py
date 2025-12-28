@@ -26,17 +26,23 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "your-secret-key-change-in-production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
-    # CORS
-    BACKEND_CORS_ORIGINS: list[AnyHttpUrl] = []
+    # CORS - use list[str] to avoid AnyHttpUrl conversion issues with CORS middleware
+    BACKEND_CORS_ORIGINS: list[str] = []
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
-    def assemble_cors_origins(cls, v: str | list[str]) -> list[str] | str:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
+    def assemble_cors_origins(cls, v: str | list[str]) -> list[str]:
+        import json
+        if isinstance(v, str):
+            if v.startswith("["):
+                # Parse JSON array
+                return json.loads(v)
+            else:
+                # Comma-separated string
+                return [i.strip() for i in v.split(",")]
         elif isinstance(v, list):
             return v
-        raise ValueError(v)
+        return []
 
     # Database
     POSTGRES_SERVER: str = "localhost"

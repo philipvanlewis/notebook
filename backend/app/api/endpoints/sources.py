@@ -266,8 +266,12 @@ async def scrape_url(
 
     except Exception as e:
         logger.error(f"Failed to scrape URL: {e}")
+        # Rollback any pending failed transaction first
+        await db.rollback()
+
+        # Update the source with error status in a fresh transaction
         source.status = SourceStatus.ERROR.value
-        source.error = str(e)
+        source.error = str(e)[:500] if str(e) else "Unknown error"
         await db.commit()
 
         raise HTTPException(

@@ -40,3 +40,10 @@ class UserRead(UserBase):
     is_active: bool
     created_at: datetime
     last_login: datetime | None = None
+
+
+class PasswordUpdate(BaseModel):
+    """Schema for updating user password."""
+
+    current_password: str
+    new_password: str
