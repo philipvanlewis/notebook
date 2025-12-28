@@ -1,0 +1,22 @@
+{
+  "TCP": {
+    "443": {
+      "HTTPS": true
+    }
+  },
+  "Web": {
+    "notebook.tail34420.ts.net:443": {
+      "Handlers": {
+        "/api/": {
+          "Proxy": "http://backend:8000/api"
+        },
+        "/": {
+          "Proxy": "http://127.0.0.1:3000"
+        }
+      }
+    }
+  },
+  "AllowFunnel": {
+    "notebook.tail34420.ts.net:443": true
+  }
+}

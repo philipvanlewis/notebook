@@ -1,0 +1,145 @@
+# Production Docker Compose for Notebook
+# Deploy with: docker compose -f deploy/docker-compose.yml up -d --build
+
+services:
+  # Tailscale sidecar for notebook
+  tailscale-notebook:
+    image: tailscale/tailscale:stable
+    container_name: ts-notebook
+    hostname: notebook
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_HOSTNAME=notebook
+      - TS_USERSPACE=false
+      - TS_EXTRA_ARGS=--advertise-tags=tag:container
+      - TS_ENABLE_HEALTH_CHECK=true
+      - TS_LOCAL_ADDR_PORT=127.0.0.1:9001
+      - TS_SERVE_CONFIG=/config/serve.json
+    volumes:
+      - ts-state-notebook:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+      - ./serve.json:/config/serve.json:ro
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    networks:
+      - notebook-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:9001/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # PostgreSQL with pgvector extension
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: notebook-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-notebook}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-notebook}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - notebook-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notebook -d notebook"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # Redis for caching and job queue
+  redis:
+    image: redis:7-alpine
+    container_name: notebook-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - notebook-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: notebook-backend
+    restart: unless-stopped
+    environment:
+      # Individual DB vars for config.py (it builds DATABASE_URL from these)
+      - POSTGRES_SERVER=postgres
+      - POSTGRES_USER=${POSTGRES_USER:-notebook}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-notebook}
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}
+      - HYPERBROWSER_API_KEY=${HYPERBROWSER_API_KEY:-}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=production
+      - BACKEND_URL=https://notebook.tail34420.ts.net
+      - BACKEND_CORS_ORIGINS=["https://notebook.tail34420.ts.net"]
+    volumes:
+      - notebook_uploads:/app/uploads
+    networks:
+      - notebook-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=https://notebook.tail34420.ts.net/api/v1
+    container_name: notebook-frontend
+    network_mode: service:tailscale-notebook
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://notebook.tail34420.ts.net/api/v1
+    depends_on:
+      tailscale-notebook:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+networks:
+  notebook-network:
+    name: notebook-network
+
+volumes:
+  ts-state-notebook:
+    name: ts-state-notebook
+  postgres_data:
+    name: notebook-postgres-data
+  redis_data:
+    name: notebook-redis-data
+  notebook_uploads:
+    name: notebook-uploads
