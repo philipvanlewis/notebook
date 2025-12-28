@@ -49,11 +49,17 @@ export function useSendMessage() {
 
 /**
  * Send a streaming message to the AI chat
- * Returns an async generator for progressive responses
+ * Returns accumulated response as a Promise (use chatApi.askStream directly for true streaming)
  */
 export function useSendStreamingMessage() {
   return useMutation({
-    mutationFn: (request: ChatRequest) => chatApi.askStream(request),
+    mutationFn: async (request: ChatRequest): Promise<string> => {
+      let result = "";
+      for await (const chunk of chatApi.askStream(request)) {
+        result += chunk;
+      }
+      return result;
+    },
     onError: (error) => {
       toast.error("Chat failed", {
         description:
